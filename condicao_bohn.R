@@ -179,3 +179,59 @@ ggplot(dados_padronizados, aes(x = PERÍODO)) +
     color = NULL
   ) +
   theme_minimal(base_size = 13)
+
+beta_lr <- - coef(ue12)[["L(d, 1)"]] / coef(ue12)[["L(s, 1)"]]
+
+dados_padronizados %>% 
+  drop_na(s, d) %>% 
+  ggplot(aes(x = d, y = s)) +
+  geom_point(alpha = 0.45, size = 1.7, color = "steelblue") +
+  geom_smooth(method = "lm", se = TRUE, color = "#D9534F") +
+  annotate("label",
+           x = quantile(dados_padronizados$d, 0.02, na.rm=TRUE),
+           y = max(dados_padronizados$s, na.rm=TRUE),
+           hjust = 0, vjust = 1,
+           label = sprintf("∂s/∂d (LR) ≈ %.2f", beta_lr),
+           size = 4) +
+  labs(title = "Função de reação fiscal (Condição de Bohn)",
+       subtitle = "Reta de regressão entre Dívida/PIB e Primário/PIB • 2011–2025",
+       x = "Dívida bruta (% do PIB)", y = "Resultado primário (% do PIB)") +
+  theme_minimal(base_size = 13)
+
+get_lr <- function(term) - coef(ue12)[[term]] / coef(ue12)[["L(s, 1)"]]
+
+efeitos_lr <- tibble::tibble(
+  Variavel = c("Dívida (d)", "Gap (ciclo)", "Juros reais (r)",
+               "Teto de Gastos (nível)", "Novo Arcabouço (nível)"),
+  LR = c(get_lr("L(d, 1)"),
+         ifelse(!is.na(coef(ue12)[["gap"]]), get_lr("gap"), NA),
+         ifelse(!is.na(coef(ue12)[["r"]]),   get_lr("r"),   NA),
+         ifelse(!is.na(coef(ue12)[["L(teto_gastos, 1)"]]), get_lr("L(teto_gastos, 1)"), NA),
+         ifelse(!is.na(coef(ue12)[["L(novo_arcabouco, 1)"]]), get_lr("L(novo_arcabouco, 1)"), NA))
+)
+
+efeitos_lr %>% 
+  tidyr::drop_na() %>% 
+  ggplot(aes(x = reorder(Variavel, LR), y = LR, fill = LR > 0)) +
+  geom_col(width = 0.65) +
+  coord_flip() +
+  scale_fill_manual(values = c("TRUE"="#2CA02C","FALSE"="#D62728"), guide = "none") +
+  labs(title = "Efeitos de longo prazo no primário (UECM)",
+       subtitle = "Sinal e magnitude estimados • 2011–2025",
+       x = NULL, y = "Impacto de longo prazo (% do PIB)") +
+  theme_minimal(base_size = 13)
+
+try({
+  ir <- ARDL::irf(ue12, impulse = "d", response = "s", n.ahead = 12)
+  ARDL::plot_irf(ir) + ggtitle("Resposta do primário a choque em dívida (horizonte de 12 meses)")
+}, silent = TRUE)
+
+ggplot(dados_padronizados, aes(x = PERÍODO)) +
+  geom_line(aes(y = g_d_12m, color = "Crescimento da dívida (12m)")) +
+  geom_line(aes(y = g_Y_12m, color = "Crescimento do PIB (12m)")) +
+  geom_line(aes(y = diff_dY_12m, color = "Gap (Δd−Δy, 12m)"),
+            linewidth = 0.9, linetype = "dashed") +
+  labs(title = "Dívida vs PIB — variação em 12 meses",
+       subtitle = "Gap positivo sugere dominância fiscal (dívida > PIB)",
+       x = "Período", y = "Taxa (%)", color = NULL) +
+  theme_minimal(base_size = 13)
