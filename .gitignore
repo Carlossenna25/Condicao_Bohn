@@ -1,1 +1,19 @@
+# arquivos do RStudio
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# pastas de saída
+outputs/
+gráficos/
+data/processed/
+
+# arquivos temporários
+*.tmp
+*.xlsx~
+*.csv~
+*.zip
+.DS_Store
+Thumbs.db
 
